@@ -1,0 +1,829 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ShieldOS — Sécurité Android</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #090c10;
+    --bg2: #0d1117;
+    --bg3: #131920;
+    --green: #00ff9f;
+    --green-dim: #00ff9f33;
+    --green-mid: #00cc7e;
+    --red: #ff3860;
+    --red-dim: #ff386022;
+    --orange: #ffb347;
+    --orange-dim: #ffb34722;
+    --blue: #00aaff;
+    --blue-dim: #00aaff22;
+    --text: #c8d6e5;
+    --text-dim: #546e8a;
+    --border: #1a2733;
+    --glow: 0 0 20px #00ff9f44;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Rajdhani', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* Scanline overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,159,0.015) 2px,
+      rgba(0,255,159,0.015) 4px
+    );
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  /* Grid background */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,255,159,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,159,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    max-width: 420px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    z-index: 1;
+    padding-bottom: 80px;
+  }
+
+  /* ── Header ── */
+  .header {
+    padding: 20px 20px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .logo-icon {
+    width: 36px;
+    height: 36px;
+    position: relative;
+  }
+
+  .logo-icon svg { width: 100%; height: 100%; }
+
+  .logo-text {
+    font-family: 'Space Mono', monospace;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--green);
+    letter-spacing: 2px;
+    text-shadow: var(--glow);
+  }
+
+  .logo-sub {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--green);
+    box-shadow: 0 0 8px var(--green), 0 0 16px var(--green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.6; transform: scale(0.8); }
+  }
+
+  .header-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    color: var(--text-dim);
+  }
+
+  /* ── Score Radial ── */
+  .score-section {
+    padding: 24px 20px 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .score-ring {
+    position: relative;
+    width: 180px;
+    height: 180px;
+    margin-bottom: 16px;
+  }
+
+  .score-ring svg {
+    width: 100%;
+    height: 100%;
+    transform: rotate(-90deg);
+  }
+
+  .score-track {
+    fill: none;
+    stroke: var(--border);
+    stroke-width: 8;
+  }
+
+  .score-fill {
+    fill: none;
+    stroke: var(--green);
+    stroke-width: 8;
+    stroke-linecap: round;
+    stroke-dasharray: 502;
+    stroke-dashoffset: 75;
+    filter: drop-shadow(0 0 6px var(--green));
+    transition: stroke-dashoffset 1.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .score-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .score-number {
+    font-family: 'Space Mono', monospace;
+    font-size: 48px;
+    font-weight: 700;
+    color: var(--green);
+    text-shadow: var(--glow);
+    line-height: 1;
+  }
+
+  .score-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+    letter-spacing: 2px;
+    margin-top: 4px;
+  }
+
+  .score-status {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--green);
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    opacity: 0.8;
+  }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 10px;
+    padding: 0 20px 20px;
+  }
+
+  .stat-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 10px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+  }
+
+  .stat-card.green::before { background: var(--green); box-shadow: 0 0 8px var(--green); }
+  .stat-card.red::before { background: var(--red); box-shadow: 0 0 8px var(--red); }
+  .stat-card.orange::before { background: var(--orange); box-shadow: 0 0 8px var(--orange); }
+
+  .stat-value {
+    font-family: 'Space Mono', monospace;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+
+  .stat-card.green .stat-value { color: var(--green); }
+  .stat-card.red .stat-value { color: var(--red); }
+  .stat-card.orange .stat-value { color: var(--orange); }
+
+  .stat-name {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  /* ── Section Title ── */
+  .section-title {
+    padding: 4px 20px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .section-title span {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--text-dim);
+    letter-spacing: 3px;
+    text-transform: uppercase;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: linear-gradient(90deg, var(--border), transparent);
+  }
+
+  /* ── Module Cards ── */
+  .modules {
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .module-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .module-card:hover {
+    border-color: var(--green);
+    background: var(--bg3);
+    transform: translateX(2px);
+  }
+
+  .module-card:hover .module-icon {
+    box-shadow: var(--glow);
+  }
+
+  .module-card::after {
+    content: '';
+    position: absolute;
+    right: 0; top: 0; bottom: 0;
+    width: 3px;
+    border-radius: 0 10px 10px 0;
+  }
+
+  .module-card.ok::after { background: var(--green); }
+  .module-card.warn::after { background: var(--orange); }
+  .module-card.crit::after { background: var(--red); }
+
+  .module-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+    transition: box-shadow 0.2s;
+  }
+
+  .module-icon.ok { background: var(--green-dim); border: 1px solid var(--green)44; }
+  .module-icon.warn { background: var(--orange-dim); border: 1px solid var(--orange)44; }
+  .module-icon.crit { background: var(--red-dim); border: 1px solid var(--red)44; }
+  .module-icon.blue { background: var(--blue-dim); border: 1px solid var(--blue)44; }
+
+  .module-info { flex: 1; min-width: 0; }
+
+  .module-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.5px;
+    margin-bottom: 3px;
+  }
+
+  .module-desc {
+    font-size: 12px;
+    color: var(--text-dim);
+    font-weight: 500;
+  }
+
+  .module-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    border-radius: 4px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+
+  .badge-ok { background: var(--green-dim); color: var(--green); border: 1px solid var(--green)44; }
+  .badge-warn { background: var(--orange-dim); color: var(--orange); border: 1px solid var(--orange)44; }
+  .badge-crit { background: var(--red-dim); color: var(--red); border: 1px solid var(--red)44; }
+  .badge-num { background: var(--blue-dim); color: var(--blue); border: 1px solid var(--blue)44; }
+
+  /* ── Toggle Switch ── */
+  .toggle {
+    width: 40px;
+    height: 22px;
+    background: var(--border);
+    border-radius: 11px;
+    position: relative;
+    cursor: pointer;
+    transition: background 0.3s;
+    flex-shrink: 0;
+  }
+
+  .toggle.on { background: var(--green); box-shadow: 0 0 8px var(--green)66; }
+
+  .toggle::after {
+    content: '';
+    position: absolute;
+    top: 3px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: white;
+    transition: left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .toggle.off::after { left: 3px; }
+  .toggle.on::after { left: 21px; }
+
+  /* ── Threat Log ── */
+  .threat-log {
+    padding: 0 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .log-entry {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    animation: slideIn 0.4s ease-out both;
+  }
+
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .log-entry:nth-child(1) { animation-delay: 0.1s; }
+  .log-entry:nth-child(2) { animation-delay: 0.2s; }
+  .log-entry:nth-child(3) { animation-delay: 0.3s; }
+
+  .log-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-top: 5px;
+    flex-shrink: 0;
+  }
+
+  .log-dot.ok { background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .log-dot.warn { background: var(--orange); box-shadow: 0 0 6px var(--orange); }
+  .log-dot.crit { background: var(--red); box-shadow: 0 0 6px var(--red); }
+
+  .log-content { flex: 1; min-width: 0; }
+
+  .log-msg {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 2px;
+  }
+
+  .log-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    color: var(--text-dim);
+  }
+
+  /* ── Scan Button ── */
+  .scan-section {
+    padding: 20px;
+  }
+
+  .scan-btn {
+    width: 100%;
+    padding: 16px;
+    background: transparent;
+    border: 1px solid var(--green);
+    border-radius: 10px;
+    color: var(--green);
+    font-family: 'Space Mono', monospace;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s;
+    box-shadow: 0 0 20px var(--green)22, inset 0 0 20px var(--green)08;
+  }
+
+  .scan-btn:hover {
+    background: var(--green-dim);
+    box-shadow: 0 0 30px var(--green)44, inset 0 0 30px var(--green)15;
+    letter-spacing: 5px;
+  }
+
+  .scan-btn::before {
+    content: '';
+    position: absolute;
+    top: -2px; left: -100%;
+    width: 60%;
+    height: calc(100% + 4px);
+    background: linear-gradient(90deg, transparent, var(--green)33, transparent);
+    animation: shimmer 3s ease-in-out infinite;
+  }
+
+  @keyframes shimmer {
+    0% { left: -100%; }
+    100% { left: 200%; }
+  }
+
+  /* ── Bottom Nav ── */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 420px;
+    background: var(--bg2);
+    border-top: 1px solid var(--border);
+    display: flex;
+    padding: 10px 0 16px;
+    z-index: 100;
+  }
+
+  .nav-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    padding: 4px 0;
+    transition: all 0.2s;
+  }
+
+  .nav-item .nav-icon {
+    font-size: 20px;
+    opacity: 0.5;
+    transition: all 0.2s;
+  }
+
+  .nav-item .nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text-dim);
+    letter-spacing: 1px;
+    transition: color 0.2s;
+  }
+
+  .nav-item.active .nav-icon { opacity: 1; filter: drop-shadow(0 0 6px var(--green)); }
+  .nav-item.active .nav-label { color: var(--green); }
+
+  /* ── Animations on load ── */
+  .score-section { animation: fadeUp 0.6s ease-out 0.1s both; }
+  .stats-row { animation: fadeUp 0.6s ease-out 0.25s both; }
+  .modules { animation: fadeUp 0.6s ease-out 0.4s both; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  /* ── Section spacer ── */
+  .spacer { height: 20px; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="logo">
+      <div class="logo-icon">
+        <svg viewBox="0 0 36 36" fill="none">
+          <path d="M18 3 L32 9 L32 20 C32 27 25 32 18 34 C11 32 4 27 4 20 L4 9 Z" stroke="#00ff9f" stroke-width="1.5" fill="none" filter="url(#glow)"/>
+          <path d="M12 18 L16 22 L24 14" stroke="#00ff9f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+          <defs>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="1" result="blur"/>
+              <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+            </filter>
+          </defs>
+        </svg>
+      </div>
+      <div>
+        <div class="logo-text">ShieldOS</div>
+        <div class="logo-sub">Android Security</div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="status-dot"></div>
+      <div class="header-time" id="clock">--:--</div>
+    </div>
+  </div>
+
+  <!-- Score Ring -->
+  <div class="score-section">
+    <div class="score-ring">
+      <svg viewBox="0 0 180 180">
+        <circle class="score-track" cx="90" cy="90" r="80"/>
+        <circle class="score-fill" cx="90" cy="90" r="80" id="scoreArc"/>
+      </svg>
+      <div class="score-center">
+        <div class="score-number" id="scoreNum">0</div>
+        <div class="score-label">/ 100</div>
+      </div>
+    </div>
+    <div class="score-status">● Système Sécurisé</div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stats-row">
+    <div class="stat-card green">
+      <div class="stat-value">247</div>
+      <div class="stat-name">Scans</div>
+    </div>
+    <div class="stat-card red">
+      <div class="stat-value">3</div>
+      <div class="stat-name">Menaces</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="stat-value">12</div>
+      <div class="stat-name">Alertes</div>
+    </div>
+  </div>
+
+  <!-- Modules -->
+  <div class="section-title">
+    <span>Modules Actifs</span>
+  </div>
+
+  <div class="modules">
+
+    <div class="module-card ok">
+      <div class="module-icon ok">🛡️</div>
+      <div class="module-info">
+        <div class="module-name">Pare-feu Réseau</div>
+        <div class="module-desc">Filtrage entrant/sortant actif</div>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on'); this.classList.toggle('off')"></div>
+    </div>
+
+    <div class="module-card ok">
+      <div class="module-icon ok">🔍</div>
+      <div class="module-info">
+        <div class="module-name">Anti-Malware</div>
+        <div class="module-desc">Dernière analyse : il y a 2h</div>
+      </div>
+      <div class="module-badge badge-ok">OK</div>
+    </div>
+
+    <div class="module-card warn">
+      <div class="module-icon warn">🔒</div>
+      <div class="module-info">
+        <div class="module-name">Permissions Apps</div>
+        <div class="module-desc">4 permissions suspectes</div>
+      </div>
+      <div class="module-badge badge-warn">4</div>
+    </div>
+
+    <div class="module-card ok">
+      <div class="module-icon blue">📡</div>
+      <div class="module-info">
+        <div class="module-name">VPN Automatique</div>
+        <div class="module-desc">Actif sur WiFi public</div>
+      </div>
+      <div class="toggle on" onclick="this.classList.toggle('on'); this.classList.toggle('off')"></div>
+    </div>
+
+    <div class="module-card crit">
+      <div class="module-icon warn">⚠️</div>
+      <div class="module-info">
+        <div class="module-name">Root Detector</div>
+        <div class="module-desc">Rootaccess Magisk détecté</div>
+      </div>
+      <div class="module-badge badge-crit">ROOT</div>
+    </div>
+
+    <div class="module-card ok">
+      <div class="module-icon ok">🔐</div>
+      <div class="module-info">
+        <div class="module-name">Chiffrement</div>
+        <div class="module-desc">AES-256 · Stockage chiffré</div>
+      </div>
+      <div class="module-badge badge-ok">AES</div>
+    </div>
+
+  </div>
+
+  <!-- Scan button -->
+  <div class="scan-section">
+    <button class="scan-btn" onclick="runScan(this)">▶ Lancer Scan Complet</button>
+  </div>
+
+  <!-- Threat log -->
+  <div class="section-title" style="padding-top:0">
+    <span>Journal des événements</span>
+  </div>
+
+  <div class="threat-log" id="logList">
+    <div class="log-entry">
+      <div class="log-dot crit"></div>
+      <div class="log-content">
+        <div class="log-msg">Magisk v30.7 — Root actif détecté</div>
+        <div class="log-time">Aujourd'hui · 14:32:01</div>
+      </div>
+    </div>
+    <div class="log-entry">
+      <div class="log-dot warn"></div>
+      <div class="log-content">
+        <div class="log-msg">Connexion WiFi non chiffrée bloquée</div>
+        <div class="log-time">Aujourd'hui · 11:17:44</div>
+      </div>
+    </div>
+    <div class="log-entry">
+      <div class="log-dot ok"></div>
+      <div class="log-content">
+        <div class="log-msg">Scan système terminé — Aucune menace</div>
+        <div class="log-time">Aujourd'hui · 09:04:22</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="spacer"></div>
+
+</div>
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <div class="nav-item active">
+    <span class="nav-icon">🛡️</span>
+    <span class="nav-label">Accueil</span>
+  </div>
+  <div class="nav-item" onclick="setNav(this)">
+    <span class="nav-icon">🔍</span>
+    <span class="nav-label">Scan</span>
+  </div>
+  <div class="nav-item" onclick="setNav(this)">
+    <span class="nav-icon">📡</span>
+    <span class="nav-label">Réseau</span>
+  </div>
+  <div class="nav-item" onclick="setNav(this)">
+    <span class="nav-icon">⚙️</span>
+    <span class="nav-label">Config</span>
+  </div>
+</div>
+
+<script>
+  // Clock
+  function updateClock() {
+    const now = new Date();
+    document.getElementById('clock').textContent =
+      now.getHours().toString().padStart(2,'0') + ':' +
+      now.getMinutes().toString().padStart(2,'0');
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // Score animation
+  const target = 85;
+  let current = 0;
+  const scoreNum = document.getElementById('scoreNum');
+  const scoreArc = document.getElementById('scoreArc');
+  const circumference = 2 * Math.PI * 80; // ~502.6
+
+  const interval = setInterval(() => {
+    current = Math.min(current + 2, target);
+    scoreNum.textContent = current;
+    const offset = circumference * (1 - current / 100);
+    scoreArc.style.strokeDashoffset = offset;
+    if (current >= target) clearInterval(interval);
+  }, 20);
+
+  // Nav
+  function setNav(el) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    el.classList.add('active');
+  }
+
+  // Scan
+  function runScan(btn) {
+    btn.textContent = '⟳ Analyse en cours...';
+    btn.style.color = 'var(--orange)';
+    btn.style.borderColor = 'var(--orange)';
+    btn.disabled = true;
+
+    const msgs = [
+      { type: 'ok', text: 'Analyse des APK installées — OK' },
+      { type: 'warn', text: 'Permission caméra suspecte : TikTok' },
+      { type: 'ok', text: 'Intégrité système vérifiée' },
+    ];
+
+    let i = 0;
+    const log = document.getElementById('logList');
+    const timer = setInterval(() => {
+      if (i >= msgs.length) {
+        clearInterval(timer);
+        btn.textContent = '✓ Scan Terminé';
+        btn.style.color = 'var(--green)';
+        btn.style.borderColor = 'var(--green)';
+        setTimeout(() => {
+          btn.textContent = '▶ Lancer Scan Complet';
+          btn.style.color = '';
+          btn.style.borderColor = '';
+          btn.disabled = false;
+        }, 2000);
+        return;
+      }
+      const m = msgs[i++];
+      const now = new Date();
+      const t = now.getHours().toString().padStart(2,'0') + ':' +
+                now.getMinutes().toString().padStart(2,'0') + ':' +
+                now.getSeconds().toString().padStart(2,'0');
+      const entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML = `
+        <div class="log-dot ${m.type}"></div>
+        <div class="log-content">
+          <div class="log-msg">${m.text}</div>
+          <div class="log-time">Aujourd'hui · ${t}</div>
+        </div>`;
+      log.prepend(entry);
+    }, 900);
+  }
+</script>
+</body>
+</html>
